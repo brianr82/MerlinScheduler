@@ -1,9 +1,7 @@
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -32,16 +30,19 @@ public class MerlinScheduler implements IScheduler{
     public void schedule(Topologies topologies, Cluster cluster) {
         Collection<TopologyDetails> topologyDetails = topologies.getTopologies();
         Collection<SupervisorDetails> supervisorDetails = cluster.getSupervisors().values();
-        Map<Integer, SupervisorDetails> supervisors = new HashMap<Integer, SupervisorDetails>();
+        Map<Object, SupervisorDetails> supervisors = new HashMap<>();
         for(SupervisorDetails s : supervisorDetails){
             Map<String, Object> metadata = (Map<String, Object>)s.getSchedulerMeta();
             if(metadata.get("group-id") != null){
-                supervisors.put((Integer)metadata.get("group-id"), s);
+                System.out.println(metadata.get("group-id"));
+
+                supervisors.put((String)metadata.get("group-id"), s);
+
             }
         }
 
         for(TopologyDetails t : topologyDetails){
-            if(cluster.needsScheduling(t)) continue;
+            if(!cluster.needsScheduling(t)) continue;
             StormTopology topology = t.getTopology();
             Map<String, Bolt> bolts = topology.get_bolts();
             Map<String, SpoutSpec> spouts = topology.get_spouts();
@@ -50,9 +51,9 @@ public class MerlinScheduler implements IScheduler{
                 for(String name : bolts.keySet()){
                     Bolt bolt = bolts.get(name);
                     JSONObject conf = (JSONObject)parser.parse(bolt.get_common().get_json_conf());
-                    if(conf.get("group-id") != null && supervisors.get(conf.get("group-id")) != null){
-                        Integer gid = (Integer)conf.get("group-id");
-                        SupervisorDetails supervisor = supervisors.get(gid);
+                    if(conf.get("group-id") != null && supervisors.get(conf.get("group-id").toString()) != null){
+                        Long gid = (Long)conf.get("group-id");
+                        SupervisorDetails supervisor = supervisors.get(gid.toString());
                         List<WorkerSlot> availableSlots = cluster.getAvailableSlots(supervisor);
                         List<ExecutorDetails> executors = cluster.getNeedsSchedulingComponentToExecutors(t).get(name);
                         if(!availableSlots.isEmpty() && executors != null){
@@ -63,9 +64,9 @@ public class MerlinScheduler implements IScheduler{
                 for(String name : spouts.keySet()){
                     SpoutSpec spout = spouts.get(name);
                     JSONObject conf = (JSONObject)parser.parse(spout.get_common().get_json_conf());
-                    if(conf.get("group-id") != null && supervisors.get(conf.get("group-id")) != null){
-                        Integer gid = (Integer)conf.get("group-id");
-                        SupervisorDetails supervisor = supervisors.get(gid);
+                    if(conf.get("group-id") != null && supervisors.get(conf.get("group-id").toString()) != null){
+                        Long gid = (Long)conf.get("group-id");
+                        SupervisorDetails supervisor = supervisors.get(gid.toString());
                         List<WorkerSlot> availableSlots = cluster.getAvailableSlots(supervisor);
                         List<ExecutorDetails> executors = cluster.getNeedsSchedulingComponentToExecutors(t).get(name);
                         if(!availableSlots.isEmpty() && executors != null){
